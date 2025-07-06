@@ -27,41 +27,51 @@ transform = transforms.Compose([
 
 face_net = cv2.dnn.readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000.caffemodel")
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"status": "Emotion Recognition API is live"}), 200
+
 @app.route("/predict", methods=["POST"])
 def predict_emotion():
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
+    try:
+        if "image" not in request.files:
+            return jsonify({"error": "No image provided"}), 400
 
-    file = request.files["image"]
-    npimg = np.frombuffer(file.read(), np.uint8)
-    image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        file = request.files["image"]
+        npimg = np.frombuffer(file.read(), np.uint8)
+        image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
 
-    h, w = image.shape[:2]
-    blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104, 177, 123), False, False)
-    face_net.setInput(blob)
-    detections = face_net.forward()
+        # Resize to reduce memory usage
+        image = cv2.resize(image, (640, 480))
 
-    for i in range(detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
-        if confidence < 0.9:
-            continue
+        h, w = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104, 177, 123), False, False)
+        face_net.setInput(blob)
+        detections = face_net.forward()
 
-        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-        x1, y1, x2, y2 = box.astype("int")
-        x1, y1 = max(0, x1), max(0, y1)
-        x2, y2 = min(w - 1, x2), min(h - 1, y2)
+        for i in range(detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            if confidence < 0.9:
+                continue
 
-        face = image[y1:y2, x1:x2]
-        if face.size == 0:
-            continue
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+            x1, y1, x2, y2 = box.astype("int")
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w - 1, x2), min(h - 1, y2)
 
-        face_tensor = transform(face).unsqueeze(0).to(device)
-        with torch.no_grad():
-            output = model(face_tensor)
-            pred = torch.argmax(output, dim=1).item()
-            return jsonify({"emotion": EMOTION_LABELS[pred]})
+            face = image[y1:y2, x1:x2]
+            if face.size == 0:
+                continue
 
-    return jsonify({"error": "No face detected"}), 404
+            face_tensor = transform(face).unsqueeze(0).to(device)
+            with torch.no_grad():
+                output = model(face_tensor)
+                pred = torch.argmax(output, dim=1).item()
+                return jsonify({"emotion": EMOTION_LABELS[pred]})
+
+        return jsonify({"error": "No face detected"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=False)
