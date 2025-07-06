@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: emotion-api
+    runtime: python
+    repo: https://github.com/ChinmayBansal010/EmotionRecognitionFlask  # Replace with your repo URL
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    plan: free
+    autoDeploy: true

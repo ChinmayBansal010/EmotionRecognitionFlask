@@ -64,4 +64,4 @@ def predict_emotion():
     return jsonify({"error": "No face detected"}), 404
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
