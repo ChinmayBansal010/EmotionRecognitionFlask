@@ -27,7 +27,7 @@ transform = transforms.Compose([
 
 face_net = cv2.dnn.readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000.caffemodel")
 
-@app.route("/", methods=["GET"])
+@app.route("/uptime", methods=["GET"])
 def index():
     return jsonify({"status": "Emotion Recognition API is live"}), 200
 
